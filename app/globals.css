@@ -67,20 +67,36 @@ body::before {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.glass-card:hover, .glass:hover {
+.glass-card:hover {
   background: var(--bg-glass-hover);
   border-color: var(--border-glow);
   box-shadow: 0 0 30px var(--neon-cyan-glow);
+  transform: translateY(-4px);
+}
+
+/* Dynamic Glow for Cards based on CSS Variable */
+.glass-card[style*="--border-glow"] {
+  border-color: var(--border-subtle);
+}
+
+.glass-card[style*="--border-glow"]:hover {
+  border-color: var(--border-glow); /* Fallback */
+  box-shadow: 0 0 40px var(--border-glow);
 }
 
 /* Neon text effects */
 .neon-text {
   text-shadow: 0 0 10px var(--neon-cyan-glow),
-               0 0 20px var(--neon-cyan-glow),
-               0 0 40px var(--neon-cyan-glow);
+               0 0 20px var(--neon-cyan-glow);
+}
+
+.neon-text-purple {
+  color: var(--neon-purple);
+  text-shadow: 0 0 10px var(--neon-purple-glow),
+               0 0 20px var(--neon-purple-glow);
 }
 
 /* Button styles */

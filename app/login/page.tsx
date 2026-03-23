@@ -1,9 +1,10 @@
 "use client";
 
-import { login, signup } from "./actions";
 import { useState } from "react";
-import { Loader2, Github, Ship, ShieldCheck, ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
+import { createSession } from "./actions";
+import { Loader2, Ship, ShieldCheck, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -11,40 +12,29 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
 
-    const handleGithubLogin = async () => {
-        setLoading(true);
-        const supabase = createClient();
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'github',
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-            },
-        });
-        if (error) {
-            setMessage({ text: error.message, type: 'error' });
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>, action: typeof login | typeof signup) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setLoading(true);
         setMessage(null);
 
         const formData = new FormData(event.currentTarget);
-        const result = await action(formData);
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
 
-        if (result?.error) {
-            setMessage({ text: result.error, type: 'error' });
-        } else {
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const idToken = await userCredential.user.getIdToken();
+            await createSession(idToken);
             setMessage({ text: "Access granted. Synchronizing Fleet...", type: 'success' });
+        } catch (error: any) {
+            console.error("Login failed", error);
+            setMessage({ text: "Authentication failed. check credentials.", type: 'error' });
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (
         <div className="relative flex min-h-screen w-full items-center justify-center bg-[#0a0a0f] overflow-hidden px-4 font-sans">
-            {/* Background Decorative Elements */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-cyan/5 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-neon-purple/5 rounded-full blur-[120px]" />
@@ -76,25 +66,27 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                <form className="space-y-6" onSubmit={(e) => handleSubmit(e, login)}>
-                    <div className="space-y-2">
-                        <label className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-[0.2em] ml-1">Terminal ID (Email)</label>
-                        <input 
-                            name="email" 
-                            type="email" 
-                            required 
-                            className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[var(--neon-cyan)]/50 transition-all font-mono text-sm"
-                            placeholder="navigator@grandline.dev"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-[0.2em] ml-1">Secure Passkey</label>
-                        <input 
-                            name="password" 
-                            type="password" 
-                            required 
-                            className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:outline-none focus:border-[var(--neon-cyan)]/50 transition-all font-mono text-sm"
-                        />
+                <form className="space-y-8" onSubmit={handleSubmit}>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-[0.2em] ml-1">Terminal ID (Email)</label>
+                            <input 
+                                name="email" 
+                                type="email" 
+                                required 
+                                className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[var(--neon-cyan)]/50 transition-all font-mono text-sm"
+                                placeholder="navigator@grandline.dev"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-[0.2em] ml-1">Secure Passkey</label>
+                            <input 
+                                name="password" 
+                                type="password" 
+                                required 
+                                className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white focus:outline-none focus:border-[var(--neon-cyan)]/50 transition-all font-mono text-sm"
+                            />
+                        </div>
                     </div>
 
                     {message && (
@@ -108,35 +100,15 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-3">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="h-12 w-full bg-[var(--neon-cyan)] text-black font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:shadow-[0_0_25px_var(--neon-cyan-glow)] transition-all duration-300 disabled:opacity-50"
-                        >
-                            {loading ? "Establishing Secure Link..." : "Authenticate"}
-                        </button>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="h-12 w-full bg-[var(--neon-cyan)] text-black font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:shadow-[0_0_25px_var(--neon-cyan-glow)] transition-all duration-300 disabled:opacity-50"
+                    >
+                        {loading ? "Establishing Secure Link..." : "Authenticate"}
+                    </button>
                 </form>
 
-                <div className="relative my-8 hidden">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-white/5" />
-                    </div>
-                    <div className="relative flex justify-center text-[8px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                        <span className="bg-[#0b0f1a] px-3">External Protocols</span>
-                    </div>
-                </div>
-
-                <button 
-                    className="h-12 w-full glass border border-white/5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:border-white/20 transition-all flex items-center justify-center gap-3 group hidden"
-                    disabled={loading}
-                    onClick={handleGithubLogin}
-                >
-                    <Github className="h-5 w-5 text-white/40 group-hover:text-white transition-colors" />
-                    GitHub SSO
-                </button>
-                
                 <div className="mt-8 pt-6 border-t border-white/5 text-[9px] font-mono text-[var(--text-muted)] flex justify-between items-center uppercase tracking-widest">
                     <span>Node: Punk-Records-Main-01</span>
                     <span className="text-emerald-500">Encrypted</span>

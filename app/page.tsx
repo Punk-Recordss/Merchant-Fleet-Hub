@@ -1,11 +1,13 @@
 "use client";
 
 import { motion } from 'framer-motion'
-import { Compass, Database, ExternalLink, Ship, Lock, ShieldAlert } from 'lucide-react'
+import { Compass, Database, ExternalLink, Ship, Lock, ShieldAlert, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { auth } from '@/lib/firebase/client'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
+import { removeSession } from './login/actions'
 
 const projects = [
   {
@@ -29,26 +31,19 @@ const projects = [
 export default function FleetHub() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
       setLoading(false)
-    }
-    checkUser()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
     })
-
-    return () => subscription.unsubscribe()
-  }, [supabase])
+    return () => unsubscribe()
+  }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await signOut(auth)
+    await removeSession()
     router.refresh()
   }
 
@@ -71,14 +66,15 @@ export default function FleetHub() {
         {user ? (
           <div className="flex items-center gap-4 glass px-4 py-2 rounded-xl">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Authenticated</span>
+              <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Fleet Master</span>
               <span className="text-xs text-white font-mono">{user.email}</span>
             </div>
             <button 
               onClick={handleLogout}
-              className="text-xs font-bold text-rose-500 hover:text-rose-400 transition-colors uppercase tracking-widest"
+              className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all group/logout"
+              title="Terminate Session"
             >
-              Disconnect
+              <LogOut className="w-4 h-4 group-hover/logout:translate-x-0.5 transition-transform" />
             </button>
           </div>
         ) : (
@@ -117,17 +113,18 @@ export default function FleetHub() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 * (idx + 1) }}
+            className="h-full"
           >
             {user ? (
               <a 
                 href={project.href}
-                className="glass-card p-8 block group relative h-full flex flex-col"
+                className="glass-card p-10 block group relative h-full flex flex-col gap-8 hover:bg-white/[0.02] transition-all"
                 style={{ '--border-glow': `var(${project.color}-glow)` } as any}
               >
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex justify-between items-start">
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:border-white/20 transition-colors">
                     <project.icon 
-                      className="w-8 h-8" 
+                      className="w-10 h-10" 
                       style={{ color: `var(${project.color})` }}
                     />
                   </div>
@@ -137,32 +134,34 @@ export default function FleetHub() {
                   </div>
                 </div>
 
-                <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-[var(--neon-cyan)] transition-colors uppercase tracking-tight">
-                  {project.name}
-                </h2>
-                <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-8 flex-1">
-                  {project.description}
-                </p>
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-black text-white group-hover:text-[var(--neon-cyan)] transition-colors uppercase tracking-tighter">
+                    {project.name}
+                  </h2>
+                  <p className="text-[var(--text-secondary)] text-sm leading-relaxed max-w-[280px]">
+                    {project.description}
+                  </p>
+                </div>
 
-                <div className="flex items-center gap-2 text-xs font-bold text-[var(--neon-cyan)] uppercase tracking-widest">
+                <div className="mt-auto pt-6 flex items-center gap-2 text-[10px] font-black text-[var(--neon-cyan)] uppercase tracking-[0.3em]">
                   Initiate Link
                   <ExternalLink className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </div>
               </a>
             ) : (
-              <div className="glass-card p-8 group relative h-full flex flex-col opacity-60 grayscale cursor-not-allowed">
+              <div className="glass-card p-10 group relative h-full flex flex-col opacity-60 grayscale cursor-not-allowed">
                  <div className="absolute inset-0 flex items-center justify-center z-20">
                     <div className="flex flex-col items-center gap-2 bg-[#0a0a0f]/80 backdrop-blur-sm p-4 rounded-xl border border-rose-500/20">
                       <ShieldAlert className="w-6 h-6 text-rose-500" />
                       <span className="text-[10px] font-bold text-rose-500 uppercase tracking-[0.2em]">Authentication Required</span>
                     </div>
                  </div>
-                 <div className="flex justify-between items-start mb-6">
+                 <div className="flex justify-between items-start mb-8">
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <project.icon className="w-8 h-8 text-white/20" />
+                    <project.icon className="w-10 h-10 text-white/20" />
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold text-white/40 mb-3 uppercase tracking-tight">
+                <h2 className="text-3xl font-black text-white/40 mb-4 uppercase tracking-tight">
                   {project.name}
                 </h2>
                 <p className="text-white/20 text-sm leading-relaxed mb-8 flex-1">

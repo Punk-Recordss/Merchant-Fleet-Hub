@@ -1,75 +1,34 @@
-"use server";
+'use server';
 
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { cookies } from 'next/headers';
+import { adminAuth } from '@/lib/firebase/admin';
+import { redirect } from 'next/navigation';
 
-export async function login(formData: FormData) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options, domain: ".punkrecords.dev" });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options, domain: ".punkrecords.dev" });
-        },
-      },
-    }
-  );
+export async function createSession(idToken: string) {
+  const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  try {
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+    const cookieStore = await cookies();
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { error: error.message };
+    cookieStore.set('session', sessionCookie, {
+      maxAge: expiresIn,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      domain: '.punkrecords.dev',
+      sameSite: 'lax',
+    });
+  } catch (error) {
+    console.error('Session creation failed:', error);
+    return { error: 'Authentication failed' };
   }
 
-  redirect("/");
+  redirect('/');
 }
 
-export async function signup(formData: FormData) {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options, domain: ".punkrecords.dev" });
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: "", ...options, domain: ".punkrecords.dev" });
-          },
-        },
-      }
-    );
-
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  return { error: "Verification link sent. Check your email." };
+export async function removeSession() {
+  const cookieStore = await cookies();
+  cookieStore.delete('session');
+  redirect('/login');
 }
