@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
+.next/
+dist/
+build/
+out/
+target/
+*.pyc
+__pycache__/
+
+# Logs and temp files
+*.log
+logs/
+.cache/
+tmp/
+
+# Version control
+.git/
+.svn/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+firebase-config.js
+supabase-config.js
+
+# Testing & coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Firebase & Supabase
+.firebase/
+.runtimeconfig.json
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Large data files
+*.csv
+*.xlsx
+*.pdf
+*.zip
