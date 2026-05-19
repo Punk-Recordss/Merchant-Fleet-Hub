@@ -24,11 +24,11 @@ export default function LoginPage() {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
-            await createSession(idToken);
             setMessage({ text: "Access granted. Synchronizing Fleet...", type: 'success' });
+            await createSession(idToken);
         } catch (error: any) {
             console.error("Login failed", error);
-            setMessage({ text: "Authentication failed. check credentials.", type: 'error' });
+            setMessage({ text: error?.code === 'auth/invalid-credential' ? "Invalid email or password." : "Authentication failed. Check credentials.", type: 'error' });
             setLoading(false);
         }
     };

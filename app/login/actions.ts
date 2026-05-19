@@ -11,12 +11,15 @@ export async function createSession(idToken: string) {
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
     const cookieStore = await cookies();
 
+    const isDev = process.env.NODE_ENV === 'development';
+    const domain = isDev ? 'localhost' : '.punkrecords.dev';
+
     cookieStore.set('session', sessionCookie, {
       maxAge: expiresIn,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: !isDev,
       path: '/',
-      domain: '.punkrecords.dev',
+      domain,
       sameSite: 'lax',
     });
   } catch (error) {
