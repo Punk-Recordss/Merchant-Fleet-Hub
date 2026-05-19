@@ -5,7 +5,7 @@ import { Compass, Database, ExternalLink, Ship, Lock, ShieldAlert, LogOut } from
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { auth } from '@/lib/firebase/client'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import { removeSession } from './login/actions'
 
@@ -29,7 +29,7 @@ const projects = [
 ]
 
 export default function FleetHub() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -119,10 +119,10 @@ export default function FleetHub() {
             className="h-full"
           >
             {user ? (
-              <a 
+              <a
                 href={project.href}
                 className="glass-card p-10 block group relative h-full flex flex-col gap-8 hover:bg-white/[0.02] transition-all"
-                style={{ '--border-glow': `var(${project.color}-glow)` } as any}
+                style={{ '--border-glow': `var(${project.color}-glow)` } as React.CSSProperties}
               >
                 <div className="flex justify-between items-start">
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:border-white/20 transition-colors">

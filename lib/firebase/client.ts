@@ -22,23 +22,23 @@ if (isDev) {
   try {
     console.log("👻 [CLIENT] Connecting to FIREBASE EMULATOR (Dev Mode)");
 
-    // @ts-ignore: Internal property check
+    // @ts-expect-error: Internal property check for emulator config
     if (!auth.emulatorConfig) {
       connectAuthEmulator(auth, "http://localhost:9099");
       console.log("✅ Auth emulator connected");
     }
 
-    // @ts-ignore: Internal property check
+    // @ts-expect-error: Internal property check for firestore settings
     if (!db._settingsFrozen) {
       try {
         connectFirestoreEmulator(db, 'localhost', 8080);
         console.log("✅ Firestore emulator connected");
-      } catch (e) {
+      } catch {
         console.warn("⚠️ Firestore emulator already connected");
       }
     }
-  } catch (e) {
-    console.error("❌ Failed to connect to emulators:", e);
+  } catch (error) {
+    console.error("❌ Failed to connect to emulators:", error);
   }
 } else {
   console.log("🚀 [CLIENT] Using PRODUCTION Firebase");
