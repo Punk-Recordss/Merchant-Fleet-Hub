@@ -1,4 +1,4 @@
-name: Deploy Merchant Fleet Hub
+name: Deploy Fleet Hub
 
 on:
   push:
