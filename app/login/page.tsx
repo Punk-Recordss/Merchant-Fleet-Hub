@@ -28,9 +28,10 @@ export default function LoginPage() {
             const idToken = await userCredential.user.getIdToken();
             setMessage({ text: "Access granted. Synchronizing Fleet...", type: 'success' });
             await createSession(idToken);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Login failed", error);
-            setMessage({ text: error?.code === 'auth/invalid-credential' ? "Invalid email or password." : "Authentication failed. Check credentials.", type: 'error' });
+            const errorCode = (error as { code?: string })?.code;
+            setMessage({ text: errorCode === 'auth/invalid-credential' ? "Invalid email or password." : "Authentication failed. Check credentials.", type: 'error' });
             setLoading(false);
         }
     };
