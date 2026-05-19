@@ -20,51 +20,94 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --verbose
+
+      - name: Run linter
+        run: npm run lint 2>&1 | tee lint-output.log || echo "Lint warnings found (non-blocking)"
 
       - name: Build project
         run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY || 'default' }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'punk-records-fleet.firebaseapp.com' }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'punk-records-fleet' }}
 
-      - name: Run linter
-        run: npm run lint || true
+      - name: Check build output
+        if: always()
+        run: |
+          echo "=== Build Output ==="
+          ls -la .next/ 2>/dev/null || echo "No .next directory found"
+          echo "=== Build Status ==="
+          [ -d ".next" ] && echo "✅ Build successful" || echo "❌ Build failed"
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.SERVER_IP }}" ]; then echo "ERROR: SERVER_IP not set"; exit 1; fi
+          if [ -z "${{ secrets.SERVER_USER }}" ]; then echo "ERROR: SERVER_USER not set"; exit 1; fi
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then echo "ERROR: SSH_PRIVATE_KEY not set"; exit 1; fi
+          if [ -z "${{ secrets.TARGET_DIR_FLEET }}" ]; then echo "ERROR: TARGET_DIR_FLEET not set"; exit 1; fi
+          echo "✅ All required secrets are configured"
+
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop_on_error: true
           script: |
+            set -e
             cd ${{ secrets.TARGET_DIR_FLEET }}
             echo "[$(date)] Starting deployment..."
 
+            # Check current status
+            echo "Current PM2 status:"
+            pm2 status merchant-fleet-hub || echo "App not running yet"
+
             # Fetch latest changes
+            echo "Fetching latest code..."
             git fetch origin main
             git reset --hard origin/main
 
-            # Stop old instance
+            # Stop old instance gracefully
             echo "Stopping old instance..."
             pm2 stop merchant-fleet-hub || true
-            sleep 2
+            sleep 3
 
             # Clean and rebuild
-            echo "Cleaning and rebuilding..."
+            echo "Installing dependencies..."
             rm -rf node_modules .next
-            npm install --production
-            npm run build
+            npm install --omit=dev
+
+            echo "Building application..."
+            NODE_ENV=production npm run build
+
+            if [ ! -d ".next" ]; then
+              echo "ERROR: Build failed - .next directory not created"
+              exit 1
+            fi
 
             # Start new instance
             echo "Starting new instance..."
             pm2 delete merchant-fleet-hub || true
+            sleep 2
             pm2 start npm --name merchant-fleet-hub -- start
             pm2 save
 
-            # Verify
-            sleep 3
-            pm2 status merchant-fleet-hub
-            echo "[$(date)] Deployment complete!"
+            # Verify deployment
+            echo "Waiting for app to start..."
+            sleep 5
+
+            echo "=== Deployment Status ==="
+            pm2 status merchant-fleet-hub || exit 1
+
+            echo "=== App Info ==="
+            pm2 info merchant-fleet-hub | head -20
+
+            echo "[$(date)] ✅ Deployment complete!"
