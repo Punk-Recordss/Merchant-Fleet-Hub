@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { createSession } from "./actions";
@@ -10,7 +10,20 @@ import { motion } from "framer-motion";
 
 export default function LoginPage() {
     const [loading, setLoading] = useState(false);
+    const [initError, setInitError] = useState<string | null>(null);
     const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
+
+    useEffect(() => {
+        try {
+            if (!auth) {
+                setInitError("Firebase auth failed to initialize");
+            }
+            console.log("✅ Login page loaded successfully");
+        } catch (error) {
+            console.error("❌ Login page init error:", error);
+            setInitError("Failed to initialize authentication service");
+        }
+    }, []);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -24,14 +37,32 @@ export default function LoginPage() {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
-            await createSession(idToken);
             setMessage({ text: "Access granted. Synchronizing Fleet...", type: 'success' });
+            await createSession(idToken);
         } catch (error: any) {
             console.error("Login failed", error);
-            setMessage({ text: "Authentication failed. check credentials.", type: 'error' });
+            setMessage({ text: error?.code === 'auth/invalid-credential' ? "Invalid email or password." : "Authentication failed. Check credentials.", type: 'error' });
             setLoading(false);
         }
     };
+
+    if (initError) {
+        return (
+            <div className="relative flex min-h-screen w-full items-center justify-center bg-[#0a0a0f] overflow-hidden px-4 font-sans">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative w-full max-w-md glass-card p-10 overflow-hidden border border-rose-500/20"
+                >
+                    <div className="text-center">
+                        <h2 className="text-xl font-black text-rose-500 mb-4">Initialization Error</h2>
+                        <p className="text-sm text-[var(--text-secondary)] mb-4">{initError}</p>
+                        <p className="text-xs text-[var(--text-muted)]">Please contact support or try again later.</p>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="relative flex min-h-screen w-full items-center justify-center bg-[#0a0a0f] overflow-hidden px-4 font-sans">
@@ -45,7 +76,7 @@ export default function LoginPage() {
                 <span className="text-xs font-bold uppercase tracking-widest font-mono">Return to Command</span>
             </Link>
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="relative w-full max-w-md glass-card p-10 overflow-hidden"
@@ -102,10 +133,11 @@ export default function LoginPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !auth}
+                        title={!auth ? "Initializing authentication..." : ""}
                         className="h-12 w-full bg-[var(--neon-cyan)] text-black font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:shadow-[0_0_25px_var(--neon-cyan-glow)] transition-all duration-300 disabled:opacity-50"
                     >
-                        {loading ? "Establishing Secure Link..." : "Authenticate"}
+                        {!auth ? "Initializing..." : loading ? "Establishing Secure Link..." : "Authenticate"}
                     </button>
                 </form>
 
