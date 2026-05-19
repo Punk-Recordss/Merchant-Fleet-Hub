@@ -22,14 +22,12 @@ if (isDev) {
   try {
     console.log("👻 [CLIENT] Connecting to FIREBASE EMULATOR (Dev Mode)");
 
-    // @ts-expect-error: Internal property check for emulator config
-    if (!auth.emulatorConfig) {
+    if (!(auth as { emulatorConfig?: unknown }).emulatorConfig) {
       connectAuthEmulator(auth, "http://localhost:9099");
       console.log("✅ Auth emulator connected");
     }
 
-    // @ts-expect-error: Internal property check for firestore settings
-    if (!db._settingsFrozen) {
+    if (!(db as { _settingsFrozen?: boolean })._settingsFrozen) {
       try {
         connectFirestoreEmulator(db, 'localhost', 8080);
         console.log("✅ Firestore emulator connected");
