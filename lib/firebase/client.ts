@@ -16,25 +16,32 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-if (process.env.NODE_ENV === 'development') {
-  console.log("👻 [CLIENT] Connecting to FIREBASE EMULATOR (Dev Mode)");
-  
-  // Only connect if not already connected (to prevent errors on HMR)
-  // But wait, connectAuthEmulator throws if already initialized? 
-  // It's usually safe to call once. With HMR, check `auth.emulatorConfig`.
-  // @ts-ignore: Internal property check
-  if (!auth.emulatorConfig) {
-    connectAuthEmulator(auth, "http://localhost:9099");
-  }
-  
-  // @ts-ignore: Internal property check
-  if (!db._settingsFrozen) { // db.toJSON().host might work? No, internal check is safer or try/catch
+const isDev = process.env.NODE_ENV === 'development';
+
+if (isDev) {
+  try {
+    console.log("👻 [CLIENT] Connecting to FIREBASE EMULATOR (Dev Mode)");
+
+    // @ts-ignore: Internal property check
+    if (!auth.emulatorConfig) {
+      connectAuthEmulator(auth, "http://localhost:9099");
+      console.log("✅ Auth emulator connected");
+    }
+
+    // @ts-ignore: Internal property check
+    if (!db._settingsFrozen) {
       try {
         connectFirestoreEmulator(db, 'localhost', 8080);
+        console.log("✅ Firestore emulator connected");
       } catch (e) {
-        // Ignore if already connected
+        console.warn("⚠️ Firestore emulator already connected");
       }
+    }
+  } catch (e) {
+    console.error("❌ Failed to connect to emulators:", e);
   }
+} else {
+  console.log("🚀 [CLIENT] Using PRODUCTION Firebase");
 }
 
 export { app, auth, db };
